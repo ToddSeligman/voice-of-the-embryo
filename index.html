@@ -867,6 +867,7 @@ Keep responses conversational. 2-3 paragraphs max. This is a spoken dialogue, no
 
             recognition.onstart = () => {
                 isListening = true;
+                finalTranscript = '';
                 updateMicButtonState('listening');
                 statusText.textContent = 'Listening...';
                 lastTranscriptTime = Date.now();
@@ -879,6 +880,8 @@ Keep responses conversational. 2-3 paragraphs max. This is a spoken dialogue, no
                 }, SILENCE_TIMEOUT);
             };
 
+            let finalTranscript = '';
+
             recognition.onresult = (event) => {
                 lastTranscriptTime = Date.now();
                 let interimTranscript = '';
@@ -886,7 +889,8 @@ Keep responses conversational. 2-3 paragraphs max. This is a spoken dialogue, no
                 for (let i = event.resultIndex; i < event.results.length; i++) {
                     const transcript = event.results[i][0].transcript;
                     if (event.results[i].isFinal) {
-                        statusText.textContent = `You: ${transcript}`;
+                        finalTranscript += transcript;
+                        statusText.textContent = `You: ${finalTranscript}`;
                     } else {
                         interimTranscript += transcript;
                     }
@@ -900,6 +904,7 @@ Keep responses conversational. 2-3 paragraphs max. This is a spoken dialogue, no
             recognition.onerror = (event) => {
                 console.error('Speech recognition error:', event.error);
                 isListening = false;
+                finalTranscript = '';
                 updateMicButtonState('idle');
                 statusText.textContent = 'Error listening. Try again.';
             };
@@ -908,7 +913,13 @@ Keep responses conversational. 2-3 paragraphs max. This is a spoken dialogue, no
                 if (silenceTimer) clearTimeout(silenceTimer);
                 isListening = false;
 
-                if (!isProcessing) {
+                const spokenText = finalTranscript.trim();
+                finalTranscript = '';
+
+                if (spokenText && !isProcessing) {
+                    addMessageToChat('user', spokenText);
+                    getEmbryoResponse(spokenText);
+                } else if (!isProcessing) {
                     updateMicButtonState('idle');
                 }
             };
