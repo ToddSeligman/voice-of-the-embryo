@@ -757,6 +757,8 @@ Keep responses conversational. 2-3 paragraphs max. This is a spoken dialogue, no
         let currentAudioSource = null;
         let recognitionSupported = false;
         let recognition = null;
+        let finalTranscript = '';
+        let manualStop = false;
         let conversationHistory = [];
         let chatMessages = [];
 
@@ -860,9 +862,6 @@ Keep responses conversational. 2-3 paragraphs max. This is a spoken dialogue, no
             recognition.continuous = true;
             recognition.interimResults = true;
             recognition.lang = 'en-US';
-
-            let finalTranscript = '';
-            let manualStop = false;
 
             recognition.onstart = () => {
                 isListening = true;
