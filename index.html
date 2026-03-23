@@ -552,6 +552,26 @@
         }
 
         /* Responsive */
+
+        /* Mobile: text input is primary, no mic button */
+        @media (max-width: 767px) {
+            .mic-btn {
+                display: none !important;
+            }
+
+            .text-input-row.hidden {
+                display: flex;
+            }
+
+            .keyboard-toggle {
+                display: none;
+            }
+
+            .text-input-row input {
+                font-size: 16px; /* prevents iOS zoom on focus */
+            }
+        }
+
         @media (min-width: 768px) {
             body {
                 padding: 0;
@@ -845,6 +865,11 @@ Keep responses conversational. 2-3 paragraphs max unless someone asks you to go 
             updateSliderDisplays();
             setMicButtonSize();
             window.addEventListener('resize', setMicButtonSize);
+
+            // On mobile, set status text for text-input mode
+            if (isMobile) {
+                statusText.textContent = 'Type your question or use your keyboard mic';
+            }
         }
 
         function setMicButtonSize() {
@@ -1149,7 +1174,7 @@ Keep responses conversational. 2-3 paragraphs max unless someone asks you to go 
                 } else {
                     isProcessing = false;
                     updateMicButtonState('idle');
-                    statusText.textContent = 'Ready to listen';
+                    statusText.textContent = isMobile ? 'Ask another question below' : 'Ready to listen';
                 }
 
             } catch (error) {
@@ -1216,7 +1241,7 @@ Keep responses conversational. 2-3 paragraphs max unless someone asks you to go 
                     console.error('Playback error:', e);
                     isProcessing = false;
                     updateMicButtonState('idle');
-                    statusText.textContent = 'Ready to listen';
+                    statusText.textContent = isMobile ? 'Ask another question below' : 'Ready to listen';
                 });
                 return;
             }
@@ -1243,7 +1268,7 @@ Keep responses conversational. 2-3 paragraphs max unless someone asks you to go 
                     source.onended = () => {
                         isSpeaking = false;
                         updateMicButtonState('idle');
-                        statusText.textContent = 'Ready to listen';
+                        statusText.textContent = isMobile ? 'Ask another question below' : 'Ready to listen';
                         isProcessing = false;
                     };
 
@@ -1438,7 +1463,7 @@ Keep responses conversational. 2-3 paragraphs max unless someone asks you to go 
                         await navigator.clipboard.writeText(url);
                         statusText.textContent = 'Link copied to clipboard';
                         setTimeout(() => {
-                            statusText.textContent = 'Ready to listen';
+                            statusText.textContent = isMobile ? 'Ask another question below' : 'Ready to listen';
                         }, 2000);
                     }
                 } catch (e) {
