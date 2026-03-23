@@ -884,12 +884,27 @@ Keep responses conversational. 2-3 paragraphs max unless someone asks you to go 
         // SPEECH RECOGNITION
         // ============================================================
 
+        let speechErrorCount = 0;
+
+        function showTextInputFallback(message) {
+            textInputRow.classList.remove('hidden');
+            keyboardToggle.classList.add('active');
+            textInput.setAttribute('placeholder', 'Type your question here...');
+            statusText.textContent = message || 'Type your question below';
+            textInput.focus();
+        }
+
         function setupSpeechRecognition() {
             const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 
             if (!SpeechRecognition) {
                 console.log('Speech Recognition not supported');
                 recognitionSupported = false;
+                // On mobile without speech support (iOS), show text input automatically
+                if (isMobile) {
+                    micBtn.style.display = 'none';
+                    showTextInputFallback('Voice not supported on this browser. Type below instead.');
+                }
                 return;
             }
 
@@ -903,6 +918,7 @@ Keep responses conversational. 2-3 paragraphs max unless someone asks you to go 
                 isListening = true;
                 finalTranscript = '';
                 manualStop = false;
+                speechErrorCount = 0;
                 updateMicButtonState('listening');
                 statusText.textContent = 'Listening... tap mic when done';
             };
@@ -931,7 +947,21 @@ Keep responses conversational. 2-3 paragraphs max unless someone asks you to go 
                 finalTranscript = '';
                 manualStop = false;
                 updateMicButtonState('idle');
-                statusText.textContent = 'Error listening. Try again.';
+                speechErrorCount++;
+
+                if (event.error === 'not-allowed') {
+                    showTextInputFallback('Microphone access denied. Type your question below.');
+                } else if (event.error === 'service-not-available' || event.error === 'network') {
+                    showTextInputFallback('Speech service unavailable. Type your question below.');
+                } else if (event.error === 'audio-capture') {
+                    showTextInputFallback('No microphone found. Type your question below.');
+                } else if (speechErrorCount >= 2) {
+                    // After repeated failures, give them the text input
+                    showTextInputFallback('Voice input not working. Type your question below.');
+                } else {
+                    statusText.textContent = 'Error listening. Tap mic to try again, or type below.';
+                    textInputRow.classList.remove('hidden');
+                }
             };
 
             recognition.onend = () => {
@@ -993,8 +1023,13 @@ Keep responses conversational. 2-3 paragraphs max unless someone asks you to go 
             }
         }
 
-        function startListening() {
-            if (!recognitionSupported || isProcessing) return;
+        async function startListening() {
+            if (!recognitionSupported || isProcessing) {
+                if (!recognitionSupported && isMobile) {
+                    showTextInputFallback('Voice not supported on this browser. Type below.');
+                }
+                return;
+            }
 
             // Toggle: if already listening, stop and send
             if (isListening) {
@@ -1013,8 +1048,27 @@ Keep responses conversational. 2-3 paragraphs max unless someone asks you to go 
                 navigator.vibrate(50);
             } catch (e) {}
 
+            // On mobile, request mic permission explicitly first
+            // This ensures the browser shows the permission prompt
+            if (isMobile && navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+                try {
+                    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                    // Got permission — stop the stream tracks (recognition will open its own)
+                    stream.getTracks().forEach(t => t.stop());
+                } catch (permErr) {
+                    console.error('Microphone permission error:', permErr);
+                    showTextInputFallback('Microphone access denied. Type your question below.');
+                    return;
+                }
+            }
+
             if (recognition) {
-                recognition.start();
+                try {
+                    recognition.start();
+                } catch (e) {
+                    console.error('Recognition start failed:', e);
+                    showTextInputFallback('Voice input failed to start. Type your question below.');
+                }
             }
         }
 
@@ -1315,6 +1369,10 @@ Keep responses conversational. 2-3 paragraphs max unless someone asks you to go 
             sendBtn.addEventListener('click', () => {
                 const message = textInput.value.trim();
                 if (message) {
+                    // Hide welcome screen if still showing
+                    if (welcomeScreen.parentElement) {
+                        welcomeScreen.style.display = 'none';
+                    }
                     addMessageToChat('user', message);
                     textInput.value = '';
                     getEmbryoResponse(message);
